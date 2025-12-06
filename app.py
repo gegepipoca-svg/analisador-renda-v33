@@ -47,7 +47,7 @@ st.set_page_config(
 st.markdown("""
 <meta property="og:title" content="Analisador de Renda Pro - Beta">
 <meta property="og:description" content="Análise de Extratos Bancários com Inteligência Artificial em 2 minutos. Teste grátis por 30 dias!">
-<meta property="og:image" content="https://i.imgur.com/SEUBANNER.png">
+<meta property="og:image" content="https://imgur.com/a/oWS86qZ">
 <meta property="og:url" content="https://bit.ly/analisadorrenda">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Analisador de Renda Pro">
