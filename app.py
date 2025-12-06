@@ -1,8 +1,8 @@
 """
 ═══════════════════════════════════════════════════════════════
-    ANALISADOR DE RENDA V3.3.2 - STREAMLIT
+    ANALISADOR DE RENDA V3.3.3 - STREAMLIT
     Sistema de Análise de Extratos Bancários
-    NOVIDADES: Streaming API + Botão Reiniciar + Branding
+    FIX: Agrupamento por dia para Apps (Uber/iFood/etc)
 ═══════════════════════════════════════════════════════════════
 """
 
@@ -25,7 +25,7 @@ import re
 # ═══════════════════════════════════════════════════════════════
 
 st.set_page_config(
-    page_title="Analisador de Renda - V3.3.2",
+    page_title="Analisador de Renda - V3.3.3",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -103,7 +103,7 @@ if not ANTHROPIC_API_KEY:
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # ═══════════════════════════════════════════════════════════════
-# PROMPT V3.3
+# PROMPT V3.3.3 - COM AGRUPAMENTO POR DIA
 # ═══════════════════════════════════════════════════════════════
 
 PROMPT_ANALISE = """Você é um especialista em análise de extratos bancários e de aplicativos de mobilidade/delivery para aprovação de crédito imobiliário.
@@ -148,6 +148,23 @@ Analise o extrato e extraia TODAS as entradas de dinheiro (créditos/receitas), 
 • Recebido via Pix (qualquer banco)
 • Crédito (qualquer banco digital)
 
+# AGRUPAMENTO POR DIA (CRÍTICO PARA APPS!)
+
+**PARA APPS DE MOBILIDADE E DELIVERY (Uber/99/iFood/Rappi):**
+- AGRUPE todas as entradas do MESMO DIA
+- Some os valores do dia
+- Crie UMA ÚNICA entrada por dia com o total
+- Descrição: "Ganhos [App] - Total do dia"
+
+**EXEMPLO:**
+Se há 40 corridas Uber no dia 25/11/2025 (R$ 10.21, R$ 7.38, R$ 10.63, etc.)
+NÃO liste 40 entradas separadas
+LISTE APENAS: {"data": "25/11/2025", "descricao": "Ganhos Uber - Total do dia", "valor": 295.48}
+
+**PARA BANCOS (tradicionais e digitais):**
+- Liste cada transação separadamente (não agrupe)
+- Cada PIX/TED/DOC é uma entrada individual
+
 # FILTRO DE FAMÍLIA (CRÍTICO!)
 
 ## REGRAS:
@@ -175,7 +192,7 @@ IMPORTANTE: Responda APENAS com JSON VÁLIDO e COMPLETO. Não adicione texto ant
   "entradas": [
     {
       "data": "DD/MM/AAAA",
-      "descricao": "Descrição original do extrato",
+      "descricao": "Para apps: 'Ganhos [App] - Total do dia' | Para bancos: descrição original",
       "valor": 1234.56
     }
   ],
@@ -195,6 +212,8 @@ CRÍTICO:
 - Use apenas aspas duplas
 - Valores numéricos sem aspas
 - Datas no formato DD/MM/AAAA
+- APPS: 1 entrada por dia (agrupada)
+- BANCOS: 1 entrada por transação
 """
 
 # ═══════════════════════════════════════════════════════════════
@@ -228,7 +247,7 @@ def processar_imagem(image_bytes):
         return None
 
 def analisar_com_claude(conteudo, tipo_arquivo, nome_cliente, banco):
-    """Analisa extrato com Claude V3.3.2 - COM STREAMING HABILITADO"""
+    """Analisa extrato com Claude V3.3.3 - COM STREAMING + AGRUPAMENTO"""
     
     mensagem_contexto = f"""
 CONTEXTO DA ANÁLISE:
@@ -263,7 +282,7 @@ CONTEXTO DA ANÁLISE:
         ]
     
     try:
-        # STREAMING HABILITADO - Resolve erro "Streaming is required"
+        # STREAMING HABILITADO
         response_text = ""
         
         with client.messages.stream(
@@ -539,7 +558,7 @@ def criar_excel_profissional(dados_json, nome_cliente, banco):
 def main():
     
     # Header
-    st.markdown('<p class="main-header">📊 Analisador de Renda V3.3.2</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">📊 Analisador de Renda V3.3.3</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Sistema Profissional de Análise de Extratos Bancários</p>', unsafe_allow_html=True)
     
     # Sidebar - Informações
@@ -548,7 +567,7 @@ def main():
         
         st.markdown("### ℹ️ Sobre o Sistema")
         st.info("""
-        **V3.3.2 - Streaming + UX**
+        **V3.3.3 - Apps Agrupados**
         
         ✅ Bancos Tradicionais
         ✅ Bancos Digitais
@@ -557,8 +576,8 @@ def main():
         
         **Total: 15 tipos suportados!**
         
-        🆕 Streaming habilitado
-        🆕 Botão reiniciar consulta
+        🆕 Agrupamento por dia (Apps)
+        🆕 JSON otimizado
         """)
         
         st.markdown("### 📋 Bancos Suportados")
@@ -686,8 +705,8 @@ def main():
                     erros.append(f"{file.name}: Tipo de arquivo não suportado")
                     continue
                 
-                # Analisa com Claude (COM STREAMING!)
-                st.info(f"🤖 Analisando {file.name} com Claude V3.3.2 (Streaming habilitado)...")
+                # Analisa com Claude (COM STREAMING + AGRUPAMENTO!)
+                st.info(f"🤖 Analisando {file.name} com Claude V3.3.3 (Agrupamento ativado)...")
                 resposta = analisar_com_claude(conteudo, file_type, nome_cliente, banco)
                 
                 # Valida JSON
@@ -792,7 +811,7 @@ def main():
         <p style='font-size: 1.1rem; font-weight: bold; color: #1f77b4; margin-bottom: 5px;'>
             By Magalhães Negócios
         </p>
-        <p><strong>Analisador de Renda V3.3.2</strong> | Streaming + UX Melhorado</p>
+        <p><strong>Analisador de Renda V3.3.3</strong> | Apps Agrupados por Dia</p>
         <p>Sistema profissional de análise de extratos bancários</p>
         <p style='font-size: 0.8rem; margin-top: 10px;'>
             Desenvolvido com ❤️ usando Streamlit + Claude Sonnet 4
