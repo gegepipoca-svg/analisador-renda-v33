@@ -1,8 +1,8 @@
 """
 ═══════════════════════════════════════════════════════════════
-    ANALISADOR DE RENDA V3.3.3 - STREAMLIT
+    ANALISADOR DE RENDA V3.4 - STREAMLIT
     Sistema de Análise de Extratos Bancários
-    FIX: Agrupamento por dia para Apps (Uber/iFood/etc)
+    DESIGN PROFISSIONAL + DASHBOARD VISUAL
 ═══════════════════════════════════════════════════════════════
 """
 
@@ -19,73 +19,284 @@ import io
 from PIL import Image
 import time
 import re
+import plotly.graph_objects as go
+import plotly.express as px
+from collections import defaultdict
 
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURAÇÕES
 # ═══════════════════════════════════════════════════════════════
 
 st.set_page_config(
-    page_title="Analisador de Renda - V3.3.3",
-    page_icon="📊",
+    page_title="Analisador de Renda Pro",
+    page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Estilo CSS customizado
+# Estilo CSS PROFISSIONAL com gradientes e animações
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 0;
+    /* RESET E BASE */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
     }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #666;
+    
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 1200px;
+    }
+    
+    /* HEADER IMPACTANTE */
+    .hero-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 3rem 2rem;
+        border-radius: 20px;
         text-align: center;
         margin-bottom: 2rem;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        animation: fadeInDown 0.8s ease-out;
     }
+    
+    .hero-title {
+        font-size: 3.5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .hero-subtitle {
+        font-size: 1.3rem;
+        color: rgba(255,255,255,0.9);
+        margin-top: 0.5rem;
+        font-weight: 300;
+    }
+    
+    .hero-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        animation: bounce 2s infinite;
+    }
+    
+    /* CARDS DE FEATURES */
+    .feature-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+        border-left: 5px solid #667eea;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+    }
+    
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .feature-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+    
+    .feature-desc {
+        color: #666;
+        font-size: 0.95rem;
+    }
+    
+    /* DASHBOARD DE RESULTADOS */
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 20px;
+        text-align: center;
+        color: white;
+        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        margin-bottom: 1.5rem;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 45px rgba(102, 126, 234, 0.5);
+    }
+    
+    .metric-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.9;
+    }
+    
+    .metric-label {
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        opacity: 0.9;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-value {
+        font-size: 2.8rem;
+        font-weight: 900;
+        margin-bottom: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .metric-subtitle {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    
+    /* SUCESSO BOX */
     .success-box {
-        padding: 1rem;
-        background-color: #d4edda;
-        border-left: 5px solid #28a745;
-        border-radius: 5px;
-        margin: 1rem 0;
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        padding: 2rem;
+        border-radius: 20px;
+        color: white;
+        text-align: center;
+        margin: 2rem 0;
+        box-shadow: 0 15px 35px rgba(17, 153, 142, 0.4);
     }
-    .info-box {
-        padding: 1rem;
-        background-color: #d1ecf1;
-        border-left: 5px solid #17a2b8;
-        border-radius: 5px;
-        margin: 1rem 0;
+    
+    .success-title {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
     }
-    .warning-box {
-        padding: 1rem;
-        background-color: #fff3cd;
-        border-left: 5px solid #ffc107;
-        border-radius: 5px;
-        margin: 1rem 0;
-    }
+    
+    /* BOTÕES */
     .stButton>button {
         width: 100%;
-        background-color: #1f77b4;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        font-size: 1.2rem;
-        padding: 0.75rem;
-        border-radius: 8px;
+        font-size: 1.3rem;
+        padding: 1rem 2rem;
+        border-radius: 50px;
         border: none;
         font-weight: bold;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
+    
     .stButton>button:hover {
-        background-color: #145a8c;
+        transform: translateY(-3px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
     }
-    .reset-button>button {
-        background-color: #6c757d !important;
+    
+    .download-btn>button {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        font-size: 1.5rem;
+        padding: 1.5rem 3rem;
     }
-    .reset-button>button:hover {
-        background-color: #5a6268 !important;
+    
+    .reset-btn>button {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        font-size: 1rem;
+        padding: 0.8rem 1.5rem;
+    }
+    
+    /* INPUT FIELDS */
+    .stTextInput>div>div>input {
+        border-radius: 10px;
+        border: 2px solid #e0e0e0;
+        padding: 0.8rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stTextInput>div>div>input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* FILE UPLOADER */
+    .uploadedFile {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    /* ANIMAÇÕES */
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes bounce {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.7;
+        }
+    }
+    
+    /* PROGRESS BAR */
+    .stProgress > div > div > div {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* SIDEBAR */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    section[data-testid="stSidebar"] * {
+        color: white !important;
+    }
+    
+    /* FOOTER */
+    .footer {
+        text-align: center;
+        padding: 2rem;
+        background: rgba(255,255,255,0.95);
+        border-radius: 20px;
+        margin-top: 3rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .footer-brand {
+        font-size: 1.3rem;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -103,7 +314,7 @@ if not ANTHROPIC_API_KEY:
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # ═══════════════════════════════════════════════════════════════
-# PROMPT V3.3.3 - COM AGRUPAMENTO POR DIA
+# PROMPT V3.4 (MESMO DA V3.3.3)
 # ═══════════════════════════════════════════════════════════════
 
 PROMPT_ANALISE = """Você é um especialista em análise de extratos bancários e de aplicativos de mobilidade/delivery para aprovação de crédito imobiliário.
@@ -156,24 +367,16 @@ Analise o extrato e extraia TODAS as entradas de dinheiro (créditos/receitas), 
 - Crie UMA ÚNICA entrada por dia com o total
 - Descrição: "Ganhos [App] - Total do dia"
 
-**EXEMPLO:**
-Se há 40 corridas Uber no dia 25/11/2025 (R$ 10.21, R$ 7.38, R$ 10.63, etc.)
-NÃO liste 40 entradas separadas
-LISTE APENAS: {"data": "25/11/2025", "descricao": "Ganhos Uber - Total do dia", "valor": 295.48}
-
 **PARA BANCOS (tradicionais e digitais):**
 - Liste cada transação separadamente (não agrupe)
-- Cada PIX/TED/DOC é uma entrada individual
 
 # FILTRO DE FAMÍLIA (CRÍTICO!)
 
 ## REGRAS:
 1. Compare o SOBRENOME do titular com sobrenomes nas descrições
 2. EXCLUA transferências entre pessoas com mesmo sobrenome
-3. Para APPS (Uber/99/iFood/Rappi): NÃO aplique filtro de família
-   - Apps não mostram sobrenomes completos
-   - Todas entradas de apps são válidas
-4. Para BANCOS (tradicionais e digitais): SEMPRE aplique filtro
+3. Para APPS: NÃO aplique filtro de família
+4. Para BANCOS: SEMPRE aplique filtro
 
 # DETECÇÃO DE TIPO DE FONTE
 
@@ -184,8 +387,6 @@ Identifique automaticamente se o extrato é de:
 - APP_DELIVERY: iFood, Rappi
 
 # FORMATO DA RESPOSTA (JSON VÁLIDO)
-
-IMPORTANTE: Responda APENAS com JSON VÁLIDO e COMPLETO. Não adicione texto antes ou depois.
 
 {
   "tipo_fonte": "BANCO_TRADICIONAL|BANCO_DIGITAL|APP_MOBILIDADE|APP_DELIVERY",
@@ -207,17 +408,14 @@ IMPORTANTE: Responda APENAS com JSON VÁLIDO e COMPLETO. Não adicione texto ant
 }
 
 CRÍTICO:
-- Retorne APENAS o JSON, sem texto antes ou depois
-- JSON deve estar COMPLETO com todas as seções
-- Use apenas aspas duplas
-- Valores numéricos sem aspas
-- Datas no formato DD/MM/AAAA
-- APPS: 1 entrada por dia (agrupada)
-- BANCOS: 1 entrada por transação
+- Retorne APENAS o JSON
+- JSON COMPLETO
+- Apps: 1 entrada por dia
+- Bancos: 1 entrada por transação
 """
 
 # ═══════════════════════════════════════════════════════════════
-# FUNÇÕES AUXILIARES
+# FUNÇÕES AUXILIARES (MESMAS DA V3.3.3)
 # ═══════════════════════════════════════════════════════════════
 
 def extrair_texto_pdf(pdf_bytes):
@@ -247,7 +445,7 @@ def processar_imagem(image_bytes):
         return None
 
 def analisar_com_claude(conteudo, tipo_arquivo, nome_cliente, banco):
-    """Analisa extrato com Claude V3.3.3 - COM STREAMING + AGRUPAMENTO"""
+    """Analisa extrato com Claude"""
     
     mensagem_contexto = f"""
 CONTEXTO DA ANÁLISE:
@@ -282,7 +480,6 @@ CONTEXTO DA ANÁLISE:
         ]
     
     try:
-        # STREAMING HABILITADO
         response_text = ""
         
         with client.messages.stream(
@@ -303,13 +500,11 @@ CONTEXTO DA ANÁLISE:
         return f"Erro na API: {str(e)}"
 
 def completar_json_parcial(json_parcial, entradas_encontradas):
-    """Completa JSON parcial com resumo calculado"""
+    """Completa JSON parcial"""
     try:
-        # Se já tem resumo, retorna como está
         if 'resumo' in json_parcial and json_parcial['resumo']:
             return json_parcial
         
-        # Calcula resumo das entradas
         if entradas_encontradas and len(entradas_encontradas) > 0:
             valores = [e.get('valor', 0) for e in entradas_encontradas if 'valor' in e]
             
@@ -324,25 +519,19 @@ def completar_json_parcial(json_parcial, entradas_encontradas):
                 
                 json_parcial['resumo'] = resumo
         
-        # Adiciona observações se não tiver
         if 'observacoes' not in json_parcial:
             json_parcial['observacoes'] = 'Análise concluída com sucesso'
         
         return json_parcial
         
     except Exception as e:
-        st.warning(f"Erro ao completar JSON: {str(e)}")
         return json_parcial
 
 def validar_e_corrigir_json(texto_resposta):
-    """Valida e corrige JSON - VERSÃO MELHORADA"""
-    
-    # Log da resposta completa (primeiros 500 chars)
-    st.info(f"📋 Resposta Claude (preview): {texto_resposta[:500]}...")
+    """Valida e corrige JSON"""
     
     texto = texto_resposta.strip()
     
-    # Remove markdown
     if texto.startswith("```json"):
         texto = texto[7:]
     if texto.startswith("```"):
@@ -351,30 +540,27 @@ def validar_e_corrigir_json(texto_resposta):
         texto = texto[:-3]
     texto = texto.strip()
     
-    # CAMADA 1: Parse direto
+    # Camada 1: Parse direto
     try:
         dados = json.loads(texto)
-        st.success("✅ JSON válido direto!")
         return dados, None
-    except json.JSONDecodeError as e:
-        st.warning(f"⚠️ JSON parse falhou: {str(e)}")
+    except:
+        pass
     
-    # CAMADA 2: Extrai JSON com regex (busca mais inteligente)
+    # Camada 2: Regex
     try:
-        # Procura por { ... } considerando chaves aninhadas
         matches = re.finditer(r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}', texto, re.DOTALL)
         for match in matches:
             try:
                 dados = json.loads(match.group())
-                if 'entradas' in dados:  # Valida que é o JSON correto
-                    st.success("✅ JSON extraído com regex!")
+                if 'entradas' in dados:
                     return dados, None
             except:
                 continue
-    except Exception as e:
-        st.warning(f"⚠️ Regex extraction falhou: {str(e)}")
+    except:
+        pass
     
-    # CAMADA 3: Tenta encontrar array de entradas e tipo_fonte
+    # Camada 3: Reconstrução
     try:
         tipo_match = re.search(r'"tipo_fonte"\s*:\s*"([^"]+)"', texto)
         entradas_match = re.search(r'"entradas"\s*:\s*\[(.*?)\]', texto, re.DOTALL)
@@ -383,7 +569,6 @@ def validar_e_corrigir_json(texto_resposta):
             tipo_fonte = tipo_match.group(1)
             entradas_str = entradas_match.group(1)
             
-            # Tenta parsear entradas individualmente
             entradas = []
             entrada_pattern = r'\{[^}]+\}'
             for entrada_match in re.finditer(entrada_pattern, entradas_str):
@@ -395,45 +580,18 @@ def validar_e_corrigir_json(texto_resposta):
                     continue
             
             if entradas:
-                # Monta JSON completo
                 dados_parciais = {
                     'tipo_fonte': tipo_fonte,
                     'entradas': entradas
                 }
                 
-                # Completa com resumo calculado
                 dados_completos = completar_json_parcial(dados_parciais, entradas)
-                
-                st.success(f"✅ JSON reconstruído! {len(entradas)} entradas encontradas")
                 return dados_completos, None
                 
-    except Exception as e:
-        st.warning(f"⚠️ Reconstrução JSON falhou: {str(e)}")
-    
-    # CAMADA 4: Corrige vírgulas extras e tenta de novo
-    texto_limpo = texto.replace(",]", "]").replace(",}", "}")
-    try:
-        dados = json.loads(texto_limpo)
-        st.success("✅ JSON corrigido (vírgulas extras)!")
-        return dados, None
     except:
         pass
     
-    # CAMADA 5: Remove quebras de linha e tenta
-    texto_sem_quebras = texto.replace("\n", " ")
-    try:
-        dados = json.loads(texto_sem_quebras)
-        st.success("✅ JSON corrigido (quebras de linha)!")
-        return dados, None
-    except:
-        pass
-    
-    # FALHOU - Mostra resposta completa pra debug
-    st.error("❌ Todas as camadas de validação JSON falharam!")
-    with st.expander("🔍 Ver resposta completa do Claude"):
-        st.code(texto_resposta, language="text")
-    
-    return None, f"Não foi possível extrair JSON válido após 5 tentativas"
+    return None, f"Não foi possível extrair JSON válido"
 
 def criar_excel_profissional(dados_json, nome_cliente, banco):
     """Cria Excel profissional"""
@@ -551,88 +709,157 @@ def criar_excel_profissional(dados_json, nome_cliente, banco):
     output.seek(0)
     return output
 
+def criar_grafico_entradas(entradas):
+    """Cria gráfico de barras das entradas por dia"""
+    
+    # Agrupa por data
+    valores_por_data = defaultdict(float)
+    for entrada in entradas:
+        data = entrada.get('data', '')
+        valor = entrada.get('valor', 0)
+        valores_por_data[data] += valor
+    
+    # Ordena por data
+    datas = sorted(valores_por_data.keys())
+    valores = [valores_por_data[d] for d in datas]
+    
+    # Pega últimos 30 dias
+    if len(datas) > 30:
+        datas = datas[-30:]
+        valores = valores[-30:]
+    
+    # Cria gráfico
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=datas,
+        y=valores,
+        marker=dict(
+            color=valores,
+            colorscale='Viridis',
+            showscale=False
+        ),
+        text=[f'R$ {v:,.2f}' for v in valores],
+        textposition='outside',
+        hovertemplate='<b>%{x}</b><br>R$ %{y:,.2f}<extra></extra>'
+    ))
+    
+    fig.update_layout(
+        title={
+            'text': '💰 Entradas por Dia (Últimos 30 dias)',
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 20, 'color': '#333', 'family': 'Arial'}
+        },
+        xaxis_title='Data',
+        yaxis_title='Valor (R$)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=12),
+        height=400,
+        showlegend=False,
+        hovermode='x unified'
+    )
+    
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='rgba(200,200,200,0.2)')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgba(200,200,200,0.2)')
+    
+    return fig
+
 # ═══════════════════════════════════════════════════════════════
 # INTERFACE STREAMLIT
 # ═══════════════════════════════════════════════════════════════
 
 def main():
     
-    # Header
-    st.markdown('<p class="main-header">📊 Analisador de Renda V3.3.3</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">Sistema Profissional de Análise de Extratos Bancários</p>', unsafe_allow_html=True)
+    # HERO HEADER
+    st.markdown("""
+    <div class="hero-header">
+        <div class="hero-icon">💰</div>
+        <h1 class="hero-title">Analisador de Renda Pro</h1>
+        <p class="hero-subtitle">Análise Profissional de Extratos Bancários com IA</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Sidebar - Informações
+    # Sidebar
     with st.sidebar:
-        st.image("https://via.placeholder.com/300x100/1f77b4/ffffff?text=Analisador+de+Renda", use_container_width=True)
-        
         st.markdown("### ℹ️ Sobre o Sistema")
         st.info("""
-        **V3.3.3 - Apps Agrupados**
+        **V3.4 - Design Profissional**
         
-        ✅ Bancos Tradicionais
-        ✅ Bancos Digitais
-        ✅ Apps de Mobilidade
-        ✅ Apps de Delivery
-        
-        **Total: 15 tipos suportados!**
-        
-        🆕 Agrupamento por dia (Apps)
-        🆕 JSON otimizado
+        ✅ Interface moderna
+        ✅ Dashboard visual
+        ✅ Gráficos interativos
+        ✅ 15 tipos suportados
         """)
         
-        st.markdown("### 📋 Bancos Suportados")
+        st.markdown("### 📋 Tipos Suportados")
         
         with st.expander("🏦 Bancos Tradicionais"):
             st.markdown("""
-            • Caixa Econômica Federal
-            • Banco do Brasil
-            • Itaú
-            • Bradesco
-            • Santander
-            • Sicoob
-            • Sicredi
+            • Caixa • BB • Itaú
+            • Bradesco • Santander
+            • Sicoob • Sicredi
             """)
         
         with st.expander("💳 Bancos Digitais"):
             st.markdown("""
-            • Nubank
-            • Inter
-            • Digio ✨
-            • PicPay ✨
-            • Mercado Pago ✨
+            • Nubank • Inter
+            • Digio • PicPay
+            • Mercado Pago
             """)
         
         with st.expander("🚗 Apps Mobilidade"):
-            st.markdown("""
-            • Uber ✨
-            • 99 ✨
-            """)
+            st.markdown("• Uber • 99")
         
         with st.expander("🍔 Apps Delivery"):
-            st.markdown("""
-            • iFood ✨
-            • Rappi ✨
-            """)
-        
-        st.success("✨ = Novo na V3.3!")
+            st.markdown("• iFood • Rappi")
     
-    # Main content
-    st.markdown("---")
+    # FEATURES CARDS
+    col1, col2, col3 = st.columns(3)
     
+    with col1:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <div class="feature-title">IA Avançada</div>
+            <div class="feature-desc">Claude Sonnet 4 analisa seus extratos com precisão</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <div class="feature-title">Dashboard Visual</div>
+            <div class="feature-desc">Visualize suas finanças com gráficos profissionais</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <div class="feature-title">Super Rápido</div>
+            <div class="feature-desc">Processamento em tempo real com streaming</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # INPUTS
     col1, col2 = st.columns(2)
     
     with col1:
         nome_cliente = st.text_input(
             "👤 Nome Completo do Cliente",
-            placeholder="Ex: João Silva Santos",
-            help="Digite o nome completo para filtrar transferências familiares"
+            placeholder="Ex: João Silva Santos"
         )
     
     with col2:
         banco = st.text_input(
             "🏦 Banco ou App",
-            placeholder="Ex: Caixa, Uber, iFood, Digio",
-            help="Informe o nome do banco ou aplicativo"
+            placeholder="Ex: Caixa, Uber, iFood"
         )
     
     st.markdown("### 📤 Upload de Extratos")
@@ -641,25 +868,24 @@ def main():
         "Arraste os arquivos ou clique para selecionar",
         type=['pdf', 'png', 'jpg', 'jpeg'],
         accept_multiple_files=True,
-        help="Formatos aceitos: PDF, PNG, JPG, JPEG"
+        help="Formatos: PDF, PNG, JPG, JPEG"
     )
     
     if uploaded_files:
-        st.markdown(f'<div class="info-box">📁 {len(uploaded_files)} arquivo(s) selecionado(s)</div>', unsafe_allow_html=True)
-        
+        st.success(f"✅ {len(uploaded_files)} arquivo(s) selecionado(s)")
         for file in uploaded_files:
-            st.text(f"✓ {file.name} ({file.size / 1024:.1f} KB)")
+            st.text(f"📄 {file.name} ({file.size / 1024:.1f} KB)")
     
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    # Botões
+    # BOTÕES
     col_btn1, col_btn2 = st.columns([3, 1])
     
     with col_btn1:
         processar = st.button("🚀 PROCESSAR EXTRATOS", type="primary")
     
     with col_btn2:
-        st.markdown('<div class="reset-button">', unsafe_allow_html=True)
+        st.markdown('<div class="reset-btn">', unsafe_allow_html=True)
         if st.button("🔄 NOVA CONSULTA"):
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
@@ -668,17 +894,15 @@ def main():
         
         # Validações
         if not nome_cliente or not banco:
-            st.error("⚠️ Por favor, preencha o nome do cliente e o banco!")
+            st.error("⚠️ Preencha o nome do cliente e o banco!")
             return
         
         if not uploaded_files:
-            st.error("⚠️ Por favor, faça upload de pelo menos um extrato!")
+            st.error("⚠️ Faça upload de pelo menos um extrato!")
             return
         
         # Processamento
         st.markdown("---")
-        st.markdown("### 🔄 Processando...")
-        
         progress_bar = st.progress(0)
         status_text = st.empty()
         
@@ -692,24 +916,20 @@ def main():
             progress_bar.progress(progress)
             
             try:
-                # Lê arquivo
                 file_bytes = file.read()
                 file_type = file.type
                 
-                # Processa baseado no tipo
                 if file_type == 'application/pdf':
                     conteudo = extrair_texto_pdf(file_bytes)
                 elif file_type in ['image/jpeg', 'image/png', 'image/jpg']:
                     conteudo = processar_imagem(file_bytes)
                 else:
-                    erros.append(f"{file.name}: Tipo de arquivo não suportado")
+                    erros.append(f"{file.name}: Tipo não suportado")
                     continue
                 
-                # Analisa com Claude (COM STREAMING + AGRUPAMENTO!)
-                st.info(f"🤖 Analisando {file.name} com Claude V3.3.3 (Agrupamento ativado)...")
+                status_text.text(f"🤖 Analisando {file.name} com IA...")
                 resposta = analisar_com_claude(conteudo, file_type, nome_cliente, banco)
                 
-                # Valida JSON
                 dados, erro = validar_e_corrigir_json(resposta)
                 
                 if erro:
@@ -718,19 +938,14 @@ def main():
                 
                 if dados and 'entradas' in dados:
                     todas_entradas.extend(dados['entradas'])
-                    st.success(f"✅ {file.name}: {len(dados['entradas'])} entradas encontradas")
-                else:
-                    erros.append(f"{file.name}: Nenhuma entrada válida encontrada")
             
             except Exception as e:
                 erros.append(f"{file.name}: {str(e)}")
         
         progress_bar.progress(1.0)
-        status_text.text("✅ Processamento concluído!")
+        status_text.empty()
         
-        st.markdown("---")
-        
-        # Resultados
+        # RESULTADOS
         if todas_entradas:
             
             # Calcula resumo
@@ -747,29 +962,61 @@ def main():
                 'tipo_fonte': 'MÚLTIPLOS_ARQUIVOS',
                 'entradas': todas_entradas,
                 'resumo': resumo,
-                'observacoes': f'Análise consolidada de {len(uploaded_files)} arquivo(s)'
+                'observacoes': f'Análise de {len(uploaded_files)} arquivo(s)'
             }
             
-            # Mostra resumo
-            st.markdown('<div class="success-box">', unsafe_allow_html=True)
-            st.markdown("### ✅ Análise Concluída!")
+            # SUCCESS BOX
+            st.markdown("""
+            <div class="success-box">
+                <div class="success-title">✅ Análise Concluída com Sucesso!</div>
+                <p>Seus dados foram processados e estão prontos para visualização</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # DASHBOARD DE MÉTRICAS
+            st.markdown("## 📊 Dashboard Financeiro")
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.metric("Total de Entradas", resumo['total_entradas'])
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-icon">💰</div>
+                    <div class="metric-label">Valor Total</div>
+                    <div class="metric-value">R$ {resumo['valor_total']:,.2f}</div>
+                    <div class="metric-subtitle">Soma de todas as entradas</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col2:
-                st.metric("Valor Total", f"R$ {resumo['valor_total']:,.2f}")
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-icon">📈</div>
+                    <div class="metric-label">Média Mensal</div>
+                    <div class="metric-value">R$ {resumo['media_mensal']:,.2f}</div>
+                    <div class="metric-subtitle">Baseado em 3 meses</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col3:
-                st.metric("Média Mensal", f"R$ {resumo['media_mensal']:,.2f}")
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-icon">📝</div>
+                    <div class="metric-label">Total Entradas</div>
+                    <div class="metric-value">{resumo['total_entradas']}</div>
+                    <div class="metric-subtitle">Transações processadas</div>
+                </div>
+                """, unsafe_allow_html=True)
             
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("<br><br>", unsafe_allow_html=True)
             
-            # Gera Excel
-            st.markdown("### 📥 Download do Relatório")
+            # GRÁFICO
+            fig = criar_grafico_entradas(todas_entradas)
+            st.plotly_chart(fig, use_container_width=True)
             
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # DOWNLOAD EXCEL
             excel_file = criar_excel_profissional(dados_completos, nome_cliente, banco)
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -778,45 +1025,37 @@ def main():
             col_download, col_reset = st.columns([3, 1])
             
             with col_download:
+                st.markdown('<div class="download-btn">', unsafe_allow_html=True)
                 st.download_button(
-                    label="📊 BAIXAR RELATÓRIO EXCEL",
+                    label="📊 BAIXAR RELATÓRIO COMPLETO",
                     data=excel_file,
                     file_name=filename,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
-            
-            with col_reset:
-                st.markdown('<div class="reset-button">', unsafe_allow_html=True)
-                if st.button("🔄 REINICIAR", key="reset2"):
-                    st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            st.success("✅ Relatório pronto para download!")
+            with col_reset:
+                st.markdown('<div class="reset-btn">', unsafe_allow_html=True)
+                if st.button("🔄 NOVA ANÁLISE", key="reset2"):
+                    st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
         
-        # Mostra erros
+        # Erros
         if erros:
             st.markdown("---")
             st.markdown("### ⚠️ Avisos")
             for erro in erros:
                 st.warning(erro)
-        
-        # Se nenhum resultado
-        if not todas_entradas and not erros:
-            st.error("❌ Nenhuma entrada válida encontrada nos arquivos processados.")
     
-    # Footer - COM BRANDING MAGALHÃES
-    st.markdown("---")
+    # FOOTER
     st.markdown("""
-    <div style='text-align: center; color: #666; padding: 20px;'>
-        <p style='font-size: 1.1rem; font-weight: bold; color: #1f77b4; margin-bottom: 5px;'>
-            By Magalhães Negócios
-        </p>
-        <p><strong>Analisador de Renda V3.3.3</strong> | Apps Agrupados por Dia</p>
-        <p>Sistema profissional de análise de extratos bancários</p>
-        <p style='font-size: 0.8rem; margin-top: 10px;'>
+    <div class="footer">
+        <p class="footer-brand">By Magalhães Negócios</p>
+        <p><strong>Analisador de Renda V3.4</strong> | Design Profissional</p>
+        <p style='font-size: 0.9rem; color: #666; margin-top: 0.5rem;'>
             Desenvolvido com ❤️ usando Streamlit + Claude Sonnet 4
         </p>
-        <p style='font-size: 0.7rem; color: #999; margin-top: 5px;'>
+        <p style='font-size: 0.8rem; color: #999; margin-top: 0.3rem;'>
             Powered by Anthropic AI
         </p>
     </div>
