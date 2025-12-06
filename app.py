@@ -1,8 +1,7 @@
 """
 ═══════════════════════════════════════════════════════════════
-    ANALISADOR DE RENDA V3.4 - STREAMLIT
-    Sistema de Análise de Extratos Bancários
-    DESIGN PROFISSIONAL + DASHBOARD VISUAL
+    ANALISADOR DE RENDA V3.5 - SISTEMA BETA
+    Controle de Acesso + Limite de Uso + Expiração
 ═══════════════════════════════════════════════════════════════
 """
 
@@ -11,7 +10,7 @@ import anthropic
 import os
 import base64
 import json
-from datetime import datetime
+from datetime import datetime, date
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import PyPDF2
@@ -22,22 +21,32 @@ import re
 import plotly.graph_objects as go
 import plotly.express as px
 from collections import defaultdict
+import hashlib
 
 # ═══════════════════════════════════════════════════════════════
-# CONFIGURAÇÕES
+# CONFIGURAÇÕES BETA
+# ═══════════════════════════════════════════════════════════════
+
+SENHA_BETA = "beta2025"  # Altere aqui para mudar a senha
+DATA_EXPIRACAO_BETA = "2026-01-05"  # AAAA-MM-DD
+CONSULTAS_POR_DIA = 2
+ARQUIVO_TRACKING = "/tmp/beta_tracking.json"
+
+# ═══════════════════════════════════════════════════════════════
+# CONFIGURAÇÕES STREAMLIT
 # ═══════════════════════════════════════════════════════════════
 
 st.set_page_config(
-    page_title="Analisador de Renda Pro",
+    page_title="Analisador de Renda Pro - Beta",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Estilo CSS PROFISSIONAL com gradientes e animações
+# CSS com design profissional
 st.markdown("""
 <style>
-    /* RESET E BASE */
+    /* BASE */
     .main {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         background-attachment: fixed;
@@ -49,7 +58,35 @@ st.markdown("""
         max-width: 1200px;
     }
     
-    /* HEADER IMPACTANTE */
+    /* LOGIN BOX */
+    .login-box {
+        background: white;
+        padding: 3rem;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        max-width: 500px;
+        margin: 5rem auto;
+        text-align: center;
+    }
+    
+    .login-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+    
+    .login-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 0.5rem;
+    }
+    
+    .login-subtitle {
+        color: #666;
+        margin-bottom: 2rem;
+    }
+    
+    /* HERO HEADER */
     .hero-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 3rem 2rem;
@@ -67,7 +104,6 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.5rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
     }
     
     .hero-subtitle {
@@ -83,7 +119,65 @@ st.markdown("""
         animation: bounce 2s infinite;
     }
     
-    /* CARDS DE FEATURES */
+    /* BETA BADGE */
+    .beta-badge {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 0.5rem 1.5rem;
+        border-radius: 50px;
+        display: inline-block;
+        font-weight: bold;
+        margin-top: 1rem;
+        box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+    }
+    
+    /* USAGE COUNTER */
+    .usage-counter {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(79, 172, 254, 0.4);
+    }
+    
+    .usage-number {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    
+    /* WARNING BOX */
+    .warning-box {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: #333;
+        padding: 2rem;
+        border-radius: 20px;
+        text-align: center;
+        margin: 3rem auto;
+        max-width: 600px;
+        box-shadow: 0 15px 35px rgba(250, 112, 154, 0.4);
+    }
+    
+    .warning-title {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+    
+    /* EXPIRED BOX */
+    .expired-box {
+        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        color: white;
+        padding: 3rem;
+        border-radius: 20px;
+        text-align: center;
+        margin: 5rem auto;
+        max-width: 600px;
+        box-shadow: 0 20px 60px rgba(235, 51, 73, 0.4);
+    }
+    
+    /* FEATURE CARDS */
     .feature-card {
         background: white;
         padding: 1.5rem;
@@ -99,24 +193,7 @@ st.markdown("""
         box-shadow: 0 15px 40px rgba(0,0,0,0.2);
     }
     
-    .feature-icon {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .feature-title {
-        font-size: 1.2rem;
-        font-weight: bold;
-        color: #333;
-        margin-bottom: 0.5rem;
-    }
-    
-    .feature-desc {
-        color: #666;
-        font-size: 0.95rem;
-    }
-    
-    /* DASHBOARD DE RESULTADOS */
+    /* METRIC CARDS */
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem;
@@ -159,7 +236,7 @@ st.markdown("""
         opacity: 0.8;
     }
     
-    /* SUCESSO BOX */
+    /* SUCCESS BOX */
     .success-box {
         background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
         padding: 2rem;
@@ -176,7 +253,7 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     
-    /* BOTÕES */
+    /* BUTTONS */
     .stButton>button {
         width: 100%;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -197,42 +274,7 @@ st.markdown("""
         box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
     }
     
-    .download-btn>button {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        font-size: 1.5rem;
-        padding: 1.5rem 3rem;
-    }
-    
-    .reset-btn>button {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        font-size: 1rem;
-        padding: 0.8rem 1.5rem;
-    }
-    
-    /* INPUT FIELDS */
-    .stTextInput>div>div>input {
-        border-radius: 10px;
-        border: 2px solid #e0e0e0;
-        padding: 0.8rem;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-    }
-    
-    .stTextInput>div>div>input:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    /* FILE UPLOADER */
-    .uploadedFile {
-        background: white;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 0.5rem 0;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    
-    /* ANIMAÇÕES */
+    /* ANIMATIONS */
     @keyframes fadeInDown {
         from {
             opacity: 0;
@@ -253,25 +295,7 @@ st.markdown("""
         }
     }
     
-    @keyframes pulse {
-        0%, 100% {
-            opacity: 1;
-        }
-        50% {
-            opacity: 0.7;
-        }
-    }
-    
-    /* PROGRESS BAR */
-    .stProgress > div > div > div {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    
     /* SIDEBAR */
-    .css-1d391kg {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-    }
-    
     section[data-testid="stSidebar"] {
         background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
     }
@@ -302,19 +326,95 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
-# API KEY
+# FUNÇÕES DE TRACKING
+# ═══════════════════════════════════════════════════════════════
+
+def carregar_tracking():
+    """Carrega dados de tracking do arquivo JSON"""
+    try:
+        if os.path.exists(ARQUIVO_TRACKING):
+            with open(ARQUIVO_TRACKING, 'r') as f:
+                return json.load(f)
+        return {}
+    except:
+        return {}
+
+def salvar_tracking(dados):
+    """Salva dados de tracking no arquivo JSON"""
+    try:
+        with open(ARQUIVO_TRACKING, 'w') as f:
+            json.dump(dados, f, indent=2)
+    except:
+        pass
+
+def verificar_expiracao_beta():
+    """Verifica se o beta expirou"""
+    try:
+        data_exp = datetime.strptime(DATA_EXPIRACAO_BETA, "%Y-%m-%d").date()
+        return date.today() > data_exp
+    except:
+        return False
+
+def obter_consultas_usuario(email):
+    """Obtém informações de consultas do usuário"""
+    tracking = carregar_tracking()
+    
+    if email not in tracking:
+        return {
+            'consultas_hoje': 0,
+            'ultima_data': str(date.today()),
+            'total_consultas': 0,
+            'primeiro_acesso': datetime.now().strftime("%Y-%m-%d %H:%M")
+        }
+    
+    usuario = tracking[email]
+    
+    # Reset se mudou o dia
+    if usuario['ultima_data'] != str(date.today()):
+        usuario['consultas_hoje'] = 0
+        usuario['ultima_data'] = str(date.today())
+        tracking[email] = usuario
+        salvar_tracking(tracking)
+    
+    return usuario
+
+def registrar_consulta(nome, email):
+    """Registra uma nova consulta do usuário"""
+    tracking = carregar_tracking()
+    
+    if email not in tracking:
+        tracking[email] = {
+            'nome': nome,
+            'consultas_hoje': 1,
+            'ultima_data': str(date.today()),
+            'total_consultas': 1,
+            'primeiro_acesso': datetime.now().strftime("%Y-%m-%d %H:%M")
+        }
+    else:
+        tracking[email]['consultas_hoje'] += 1
+        tracking[email]['total_consultas'] += 1
+        tracking[email]['ultima_data'] = str(date.today())
+    
+    salvar_tracking(tracking)
+
+def usuario_pode_consultar(email):
+    """Verifica se usuário pode fazer mais consultas hoje"""
+    usuario = obter_consultas_usuario(email)
+    return usuario['consultas_hoje'] < CONSULTAS_POR_DIA
+
+# ═══════════════════════════════════════════════════════════════
+# API CONFIGURATION
 # ═══════════════════════════════════════════════════════════════
 
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 if not ANTHROPIC_API_KEY:
     st.error("❌ ERRO: Variável ANTHROPIC_API_KEY não configurada!")
-    st.info("Configure em Settings > Secrets no Streamlit Cloud")
     st.stop()
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # ═══════════════════════════════════════════════════════════════
-# PROMPT V3.4 (MESMO DA V3.3.3)
+# PROMPT (MESMO DA V3.4)
 # ═══════════════════════════════════════════════════════════════
 
 PROMPT_ANALISE = """Você é um especialista em análise de extratos bancários e de aplicativos de mobilidade/delivery para aprovação de crédito imobiliário.
@@ -415,7 +515,7 @@ CRÍTICO:
 """
 
 # ═══════════════════════════════════════════════════════════════
-# FUNÇÕES AUXILIARES (MESMAS DA V3.3.3)
+# FUNÇÕES AUXILIARES (MESMAS DA V3.4)
 # ═══════════════════════════════════════════════════════════════
 
 def extrair_texto_pdf(pdf_bytes):
@@ -772,48 +872,204 @@ def criar_grafico_entradas(entradas):
 
 def main():
     
-    # HERO HEADER
+    # Inicializa session state
+    if 'autenticado' not in st.session_state:
+        st.session_state.autenticado = False
+    if 'identificado' not in st.session_state:
+        st.session_state.identificado = False
+    if 'nome_usuario' not in st.session_state:
+        st.session_state.nome_usuario = ""
+    if 'email_usuario' not in st.session_state:
+        st.session_state.email_usuario = ""
+    
+    # ═══════════════════════════════════════════════════════════════
+    # VERIFICAÇÃO DE EXPIRAÇÃO DO BETA
+    # ═══════════════════════════════════════════════════════════════
+    
+    if verificar_expiracao_beta():
+        st.markdown("""
+        <div class="expired-box">
+            <h1>❌ BETA ENCERRADO</h1>
+            <p style='font-size: 1.2rem; margin: 2rem 0;'>
+                O período de testes terminou em <strong>{}</strong>.
+            </p>
+            <p style='font-size: 1.1rem;'>
+                💼 <strong>Quer continuar usando?</strong><br>
+                Entre em contato para conhecer nossos planos!
+            </p>
+            <p style='font-size: 1rem; margin-top: 2rem;'>
+                📧 contato@magalhaes.com.br<br>
+                📱 (51) 99999-9999
+            </p>
+        </div>
+        """.format(DATA_EXPIRACAO_BETA), unsafe_allow_html=True)
+        st.stop()
+    
+    # ═══════════════════════════════════════════════════════════════
+    # TELA DE LOGIN (SENHA)
+    # ═══════════════════════════════════════════════════════════════
+    
+    if not st.session_state.autenticado:
+        
+        st.markdown("""
+        <div class="login-box">
+            <div class="login-icon">🔒</div>
+            <h1 class="login-title">ACESSO BETA EXCLUSIVO</h1>
+            <p class="login-subtitle">Este é um produto em fase de testes</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.container():
+            col1, col2, col3 = st.columns([1, 2, 1])
+            
+            with col2:
+                senha = st.text_input(
+                    "Digite a senha de acesso:",
+                    type="password",
+                    placeholder="Digite a senha do beta"
+                )
+                
+                st.markdown(f"""
+                <p style='text-align: center; color: #666; margin-top: 1rem;'>
+                    ⏰ Beta válido até: <strong>{DATA_EXPIRACAO_BETA}</strong>
+                </p>
+                """, unsafe_allow_html=True)
+                
+                if st.button("🚀 ACESSAR BETA"):
+                    if senha == SENHA_BETA:
+                        st.session_state.autenticado = True
+                        st.rerun()
+                    else:
+                        st.error("❌ Senha incorreta! Entre em contato para obter acesso.")
+        
+        return
+    
+    # ═══════════════════════════════════════════════════════════════
+    # TELA DE IDENTIFICAÇÃO
+    # ═══════════════════════════════════════════════════════════════
+    
+    if not st.session_state.identificado:
+        
+        st.markdown("""
+        <div class="login-box">
+            <div class="login-icon">👤</div>
+            <h1 class="login-title">IDENTIFICAÇÃO</h1>
+            <p class="login-subtitle">Para usar o sistema, precisamos saber quem você é</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.container():
+            col1, col2, col3 = st.columns([1, 2, 1])
+            
+            with col2:
+                nome = st.text_input(
+                    "Nome Completo:",
+                    placeholder="Ex: João Silva Santos"
+                )
+                
+                email = st.text_input(
+                    "Email:",
+                    placeholder="seu@email.com"
+                )
+                
+                st.markdown(f"""
+                <p style='text-align: center; color: #667eea; margin-top: 1rem; font-weight: bold;'>
+                    📊 Você terá {CONSULTAS_POR_DIA} consultas por dia
+                </p>
+                """, unsafe_allow_html=True)
+                
+                if st.button("✅ COMEÇAR A USAR"):
+                    if nome and email and '@' in email:
+                        st.session_state.identificado = True
+                        st.session_state.nome_usuario = nome
+                        st.session_state.email_usuario = email
+                        st.rerun()
+                    else:
+                        st.error("❌ Preencha nome e email válidos!")
+        
+        return
+    
+    # ═══════════════════════════════════════════════════════════════
+    # VERIFICAÇÃO DE LIMITE DIÁRIO
+    # ═══════════════════════════════════════════════════════════════
+    
+    email = st.session_state.email_usuario
+    nome = st.session_state.nome_usuario
+    usuario_info = obter_consultas_usuario(email)
+    consultas_restantes = CONSULTAS_POR_DIA - usuario_info['consultas_hoje']
+    
+    if consultas_restantes <= 0:
+        st.markdown("""
+        <div class="warning-box">
+            <div class="warning-title">⚠️ LIMITE DIÁRIO ATINGIDO</div>
+            <p style='font-size: 1.2rem; margin: 1rem 0;'>
+                Você usou suas <strong>{} consultas</strong> disponíveis hoje.
+            </p>
+            <p style='font-size: 1rem;'>
+                📊 Total de consultas realizadas: <strong>{}</strong><br>
+                📅 Volte amanhã para continuar usando!
+            </p>
+            <p style='font-size: 0.9rem; margin-top: 2rem; color: #666;'>
+                🔄 Seu limite será renovado à meia-noite
+            </p>
+        </div>
+        """.format(CONSULTAS_POR_DIA, usuario_info['total_consultas']), unsafe_allow_html=True)
+        
+        if st.button("🚪 SAIR"):
+            st.session_state.autenticado = False
+            st.session_state.identificado = False
+            st.rerun()
+        
+        return
+    
+    # ═══════════════════════════════════════════════════════════════
+    # SISTEMA PRINCIPAL
+    # ═══════════════════════════════════════════════════════════════
+    
+    # HEADER
     st.markdown("""
     <div class="hero-header">
         <div class="hero-icon">💰</div>
         <h1 class="hero-title">Analisador de Renda Pro</h1>
         <p class="hero-subtitle">Análise Profissional de Extratos Bancários com IA</p>
+        <div class="beta-badge">VERSÃO BETA</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # CONTADOR DE USO
+    st.markdown(f"""
+    <div class="usage-counter">
+        <div>Olá, <strong>{nome}</strong>! 👋</div>
+        <div class="usage-number">{consultas_restantes}/{CONSULTAS_POR_DIA}</div>
+        <div>Consultas restantes hoje</div>
     </div>
     """, unsafe_allow_html=True)
     
     # Sidebar
     with st.sidebar:
         st.markdown("### ℹ️ Sobre o Sistema")
-        st.info("""
-        **V3.4 - Design Profissional**
+        st.info(f"""
+        **V3.5 - Beta Controlado**
         
         ✅ Interface moderna
         ✅ Dashboard visual
         ✅ Gráficos interativos
         ✅ 15 tipos suportados
+        
+        🔒 Beta até: {DATA_EXPIRACAO_BETA}
+        📊 Limite: {CONSULTAS_POR_DIA} consultas/dia
         """)
         
-        st.markdown("### 📋 Tipos Suportados")
+        st.markdown("### 📊 Suas Estatísticas")
+        st.metric("Total de Consultas", usuario_info['total_consultas'])
+        st.metric("Primeiro Acesso", usuario_info['primeiro_acesso'].split()[0])
         
-        with st.expander("🏦 Bancos Tradicionais"):
-            st.markdown("""
-            • Caixa • BB • Itaú
-            • Bradesco • Santander
-            • Sicoob • Sicredi
-            """)
+        st.markdown("---")
         
-        with st.expander("💳 Bancos Digitais"):
-            st.markdown("""
-            • Nubank • Inter
-            • Digio • PicPay
-            • Mercado Pago
-            """)
-        
-        with st.expander("🚗 Apps Mobilidade"):
-            st.markdown("• Uber • 99")
-        
-        with st.expander("🍔 Apps Delivery"):
-            st.markdown("• iFood • Rappi")
+        if st.button("🚪 SAIR DO SISTEMA"):
+            st.session_state.autenticado = False
+            st.session_state.identificado = False
+            st.rerun()
     
     # FEATURES CARDS
     col1, col2, col3 = st.columns(3)
@@ -885,10 +1141,8 @@ def main():
         processar = st.button("🚀 PROCESSAR EXTRATOS", type="primary")
     
     with col_btn2:
-        st.markdown('<div class="reset-btn">', unsafe_allow_html=True)
         if st.button("🔄 NOVA CONSULTA"):
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
     
     if processar:
         
@@ -900,6 +1154,9 @@ def main():
         if not uploaded_files:
             st.error("⚠️ Faça upload de pelo menos um extrato!")
             return
+        
+        # REGISTRA CONSULTA
+        registrar_consulta(nome, email)
         
         # Processamento
         st.markdown("---")
@@ -1022,23 +1279,16 @@ def main():
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"analise_renda_{nome_cliente.replace(' ', '_')}_{timestamp}.xlsx"
             
-            col_download, col_reset = st.columns([3, 1])
+            st.download_button(
+                label="📊 BAIXAR RELATÓRIO COMPLETO",
+                data=excel_file,
+                file_name=filename,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
             
-            with col_download:
-                st.markdown('<div class="download-btn">', unsafe_allow_html=True)
-                st.download_button(
-                    label="📊 BAIXAR RELATÓRIO COMPLETO",
-                    data=excel_file,
-                    file_name=filename,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            with col_reset:
-                st.markdown('<div class="reset-btn">', unsafe_allow_html=True)
-                if st.button("🔄 NOVA ANÁLISE", key="reset2"):
-                    st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
+            # ATUALIZA CONTADOR
+            consultas_restantes_agora = CONSULTAS_POR_DIA - obter_consultas_usuario(email)['consultas_hoje']
+            st.info(f"✅ Consulta realizada! Você ainda tem **{consultas_restantes_agora}/{CONSULTAS_POR_DIA}** consultas disponíveis hoje.")
         
         # Erros
         if erros:
@@ -1051,12 +1301,9 @@ def main():
     st.markdown("""
     <div class="footer">
         <p class="footer-brand">By Magalhães Negócios</p>
-        <p><strong>Analisador de Renda V3.4</strong> | Design Profissional</p>
+        <p><strong>Analisador de Renda V3.5</strong> | Sistema Beta</p>
         <p style='font-size: 0.9rem; color: #666; margin-top: 0.5rem;'>
             Desenvolvido com ❤️ usando Streamlit + Claude Sonnet 4
-        </p>
-        <p style='font-size: 0.8rem; color: #999; margin-top: 0.3rem;'>
-            Powered by Anthropic AI
         </p>
     </div>
     """, unsafe_allow_html=True)
