@@ -1,8 +1,8 @@
 """
 ═══════════════════════════════════════════════════════════════
-    ANALISADOR DE RENDA V3.3.1 - STREAMLIT
+    ANALISADOR DE RENDA V3.3.2 - STREAMLIT
     Sistema de Análise de Extratos Bancários
-    CORREÇÕES: JSON parsing melhorado + max_tokens aumentado
+    NOVIDADES: Streaming API + Botão Reiniciar + Branding
 ═══════════════════════════════════════════════════════════════
 """
 
@@ -25,7 +25,7 @@ import re
 # ═══════════════════════════════════════════════════════════════
 
 st.set_page_config(
-    page_title="Analisador de Renda - V3.3",
+    page_title="Analisador de Renda - V3.3.2",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -80,6 +80,12 @@ st.markdown("""
     }
     .stButton>button:hover {
         background-color: #145a8c;
+    }
+    .reset-button>button {
+        background-color: #6c757d !important;
+    }
+    .reset-button>button:hover {
+        background-color: #5a6268 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -222,7 +228,7 @@ def processar_imagem(image_bytes):
         return None
 
 def analisar_com_claude(conteudo, tipo_arquivo, nome_cliente, banco):
-    """Analisa extrato com Claude V3.3.1 - MAX_TOKENS AUMENTADO"""
+    """Analisa extrato com Claude V3.3.2 - COM STREAMING HABILITADO"""
     
     mensagem_contexto = f"""
 CONTEXTO DA ANÁLISE:
@@ -257,16 +263,23 @@ CONTEXTO DA ANÁLISE:
         ]
     
     try:
-        response = client.messages.create(
+        # STREAMING HABILITADO - Resolve erro "Streaming is required"
+        response_text = ""
+        
+        with client.messages.stream(
             model="claude-sonnet-4-20250514",
-            max_tokens=32000,  # AUMENTADO de 16000 para 32000
+            max_tokens=32000,
             temperature=0,
             messages=[{
                 "role": "user",
                 "content": content
             }]
-        )
-        return response.content[0].text
+        ) as stream:
+            for text in stream.text_stream:
+                response_text += text
+        
+        return response_text
+        
     except Exception as e:
         return f"Erro na API: {str(e)}"
 
@@ -322,6 +335,7 @@ def validar_e_corrigir_json(texto_resposta):
     # CAMADA 1: Parse direto
     try:
         dados = json.loads(texto)
+        st.success("✅ JSON válido direto!")
         return dados, None
     except json.JSONDecodeError as e:
         st.warning(f"⚠️ JSON parse falhou: {str(e)}")
@@ -525,7 +539,7 @@ def criar_excel_profissional(dados_json, nome_cliente, banco):
 def main():
     
     # Header
-    st.markdown('<p class="main-header">📊 Analisador de Renda V3.3</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">📊 Analisador de Renda V3.3.2</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Sistema Profissional de Análise de Extratos Bancários</p>', unsafe_allow_html=True)
     
     # Sidebar - Informações
@@ -534,7 +548,7 @@ def main():
         
         st.markdown("### ℹ️ Sobre o Sistema")
         st.info("""
-        **V3.3 - Suporte Expandido**
+        **V3.3.2 - Streaming + UX**
         
         ✅ Bancos Tradicionais
         ✅ Bancos Digitais
@@ -542,6 +556,9 @@ def main():
         ✅ Apps de Delivery
         
         **Total: 15 tipos suportados!**
+        
+        🆕 Streaming habilitado
+        🆕 Botão reiniciar consulta
         """)
         
         st.markdown("### 📋 Bancos Suportados")
@@ -616,8 +633,19 @@ def main():
     
     st.markdown("---")
     
-    # Botão processar
-    if st.button("🚀 PROCESSAR EXTRATOS", type="primary"):
+    # Botões
+    col_btn1, col_btn2 = st.columns([3, 1])
+    
+    with col_btn1:
+        processar = st.button("🚀 PROCESSAR EXTRATOS", type="primary")
+    
+    with col_btn2:
+        st.markdown('<div class="reset-button">', unsafe_allow_html=True)
+        if st.button("🔄 NOVA CONSULTA"):
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    if processar:
         
         # Validações
         if not nome_cliente or not banco:
@@ -658,8 +686,8 @@ def main():
                     erros.append(f"{file.name}: Tipo de arquivo não suportado")
                     continue
                 
-                # Analisa com Claude
-                st.info(f"🤖 Analisando {file.name} com Claude V3.3.1...")
+                # Analisa com Claude (COM STREAMING!)
+                st.info(f"🤖 Analisando {file.name} com Claude V3.3.2 (Streaming habilitado)...")
                 resposta = analisar_com_claude(conteudo, file_type, nome_cliente, banco)
                 
                 # Valida JSON
@@ -728,12 +756,21 @@ def main():
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"analise_renda_{nome_cliente.replace(' ', '_')}_{timestamp}.xlsx"
             
-            st.download_button(
-                label="📊 BAIXAR RELATÓRIO EXCEL",
-                data=excel_file,
-                file_name=filename,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            col_download, col_reset = st.columns([3, 1])
+            
+            with col_download:
+                st.download_button(
+                    label="📊 BAIXAR RELATÓRIO EXCEL",
+                    data=excel_file,
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            
+            with col_reset:
+                st.markdown('<div class="reset-button">', unsafe_allow_html=True)
+                if st.button("🔄 REINICIAR", key="reset2"):
+                    st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
             
             st.success("✅ Relatório pronto para download!")
         
@@ -748,14 +785,20 @@ def main():
         if not todas_entradas and not erros:
             st.error("❌ Nenhuma entrada válida encontrada nos arquivos processados.")
     
-    # Footer
+    # Footer - COM BRANDING MAGALHÃES
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: #666; padding: 20px;'>
-        <p><strong>Analisador de Renda V3.3.1</strong> | Suporte Expandido + JSON Melhorado</p>
+        <p style='font-size: 1.1rem; font-weight: bold; color: #1f77b4; margin-bottom: 5px;'>
+            By Magalhães Negócios
+        </p>
+        <p><strong>Analisador de Renda V3.3.2</strong> | Streaming + UX Melhorado</p>
         <p>Sistema profissional de análise de extratos bancários</p>
         <p style='font-size: 0.8rem; margin-top: 10px;'>
             Desenvolvido com ❤️ usando Streamlit + Claude Sonnet 4
+        </p>
+        <p style='font-size: 0.7rem; color: #999; margin-top: 5px;'>
+            Powered by Anthropic AI
         </p>
     </div>
     """, unsafe_allow_html=True)
