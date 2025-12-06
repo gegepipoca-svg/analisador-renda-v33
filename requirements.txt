@@ -1,5 +1,5 @@
-streamlit==1.29.0
-anthropic==0.39.0
-openpyxl==3.1.2
-PyPDF2==3.0.1
-Pillow==10.1.0
+streamlit
+anthropic
+openpyxl
+PyPDF2
+Pillow
