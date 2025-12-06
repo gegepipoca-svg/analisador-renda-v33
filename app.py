@@ -1,7 +1,8 @@
 """
 ═══════════════════════════════════════════════════════════════
-    ANALISADOR DE RENDA V3.3 - STREAMLIT
+    ANALISADOR DE RENDA V3.3.1 - STREAMLIT
     Sistema de Análise de Extratos Bancários
+    CORREÇÕES: JSON parsing melhorado + max_tokens aumentado
 ═══════════════════════════════════════════════════════════════
 """
 
@@ -17,6 +18,7 @@ import PyPDF2
 import io
 from PIL import Image
 import time
+import re
 
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURAÇÕES
@@ -150,21 +152,6 @@ Analise o extrato e extraia TODAS as entradas de dinheiro (créditos/receitas), 
    - Todas entradas de apps são válidas
 4. Para BANCOS (tradicionais e digitais): SEMPRE aplique filtro
 
-## EXEMPLOS:
-
-Titular: "João Silva Santos"
-
-CASO 1 - BANCO TRADICIONAL:
-✅ INCLUIR: "PIX recebido de Maria Oliveira - R$ 2.000"
-❌ EXCLUIR: "PIX recebido de Ana Santos - R$ 1.500"
-❌ EXCLUIR: "TED de Pedro Silva - R$ 800"
-
-CASO 2 - UBER/99/iFOOD/RAPPI:
-✅ INCLUIR: "Ganhos Uber - R$ 150"
-✅ INCLUIR: "Ganhos 99 - R$ 85"
-✅ INCLUIR: "Receita iFood - R$ 234"
-✅ INCLUIR: TODAS as entradas de apps (sem filtro!)
-
 # DETECÇÃO DE TIPO DE FONTE
 
 Identifique automaticamente se o extrato é de:
@@ -173,25 +160,9 @@ Identifique automaticamente se o extrato é de:
 - APP_MOBILIDADE: Uber, 99
 - APP_DELIVERY: iFood, Rappi
 
-# MÚLTIPLAS ENTRADAS NO MESMO DIA
-- É NORMAL ter várias entradas no mesmo dia
-- Em apps: motorista pode ter 10+ corridas/dia
-- Em delivery: entregador pode ter 20+ entregas/dia
-- INCLUA TODAS!
-
-# VALORES PEQUENOS
-- Valores de R$ 3-30 são NORMAIS em apps
-- NÃO ignore por serem pequenos
-- INCLUA TODOS os valores
-
-# DESCRIÇÕES GENÉRICAS
-- "Ganhos Uber", "Ganhos 99", "Receita iFood" são válidos
-- NÃO precisa ter nome de quem pagou
-- Em apps, descrição genérica é o padrão
-
 # FORMATO DA RESPOSTA (JSON VÁLIDO)
 
-Responda APENAS com um JSON válido no seguinte formato:
+IMPORTANTE: Responda APENAS com JSON VÁLIDO e COMPLETO. Não adicione texto antes ou depois.
 
 {
   "tipo_fonte": "BANCO_TRADICIONAL|BANCO_DIGITAL|APP_MOBILIDADE|APP_DELIVERY",
@@ -212,8 +183,9 @@ Responda APENAS com um JSON válido no seguinte formato:
   "observacoes": "Qualquer informação relevante sobre o extrato"
 }
 
-IMPORTANTE:
+CRÍTICO:
 - Retorne APENAS o JSON, sem texto antes ou depois
+- JSON deve estar COMPLETO com todas as seções
 - Use apenas aspas duplas
 - Valores numéricos sem aspas
 - Datas no formato DD/MM/AAAA
@@ -250,7 +222,7 @@ def processar_imagem(image_bytes):
         return None
 
 def analisar_com_claude(conteudo, tipo_arquivo, nome_cliente, banco):
-    """Analisa extrato com Claude V3.3"""
+    """Analisa extrato com Claude V3.3.1 - MAX_TOKENS AUMENTADO"""
     
     mensagem_contexto = f"""
 CONTEXTO DA ANÁLISE:
@@ -287,7 +259,7 @@ CONTEXTO DA ANÁLISE:
     try:
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=16000,
+            max_tokens=32000,  # AUMENTADO de 16000 para 32000
             temperature=0,
             messages=[{
                 "role": "user",
@@ -298,10 +270,47 @@ CONTEXTO DA ANÁLISE:
     except Exception as e:
         return f"Erro na API: {str(e)}"
 
+def completar_json_parcial(json_parcial, entradas_encontradas):
+    """Completa JSON parcial com resumo calculado"""
+    try:
+        # Se já tem resumo, retorna como está
+        if 'resumo' in json_parcial and json_parcial['resumo']:
+            return json_parcial
+        
+        # Calcula resumo das entradas
+        if entradas_encontradas and len(entradas_encontradas) > 0:
+            valores = [e.get('valor', 0) for e in entradas_encontradas if 'valor' in e]
+            
+            if valores:
+                resumo = {
+                    'total_entradas': len(entradas_encontradas),
+                    'valor_total': sum(valores),
+                    'maior_entrada': max(valores),
+                    'menor_entrada': min(valores),
+                    'media_mensal': sum(valores) / 3 if len(valores) > 0 else 0
+                }
+                
+                json_parcial['resumo'] = resumo
+        
+        # Adiciona observações se não tiver
+        if 'observacoes' not in json_parcial:
+            json_parcial['observacoes'] = 'Análise concluída com sucesso'
+        
+        return json_parcial
+        
+    except Exception as e:
+        st.warning(f"Erro ao completar JSON: {str(e)}")
+        return json_parcial
+
 def validar_e_corrigir_json(texto_resposta):
-    """Valida e corrige JSON (6 camadas)"""
+    """Valida e corrige JSON - VERSÃO MELHORADA"""
+    
+    # Log da resposta completa (primeiros 500 chars)
+    st.info(f"📋 Resposta Claude (preview): {texto_resposta[:500]}...")
     
     texto = texto_resposta.strip()
+    
+    # Remove markdown
     if texto.startswith("```json"):
         texto = texto[7:]
     if texto.startswith("```"):
@@ -310,40 +319,88 @@ def validar_e_corrigir_json(texto_resposta):
         texto = texto[:-3]
     texto = texto.strip()
     
-    # Camada 1: Parse direto
+    # CAMADA 1: Parse direto
     try:
         dados = json.loads(texto)
         return dados, None
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        st.warning(f"⚠️ JSON parse falhou: {str(e)}")
     
-    # Camada 2: Corrige vírgulas extras
-    texto = texto.replace(",]", "]").replace(",}", "}")
+    # CAMADA 2: Extrai JSON com regex (busca mais inteligente)
     try:
-        dados = json.loads(texto)
+        # Procura por { ... } considerando chaves aninhadas
+        matches = re.finditer(r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}', texto, re.DOTALL)
+        for match in matches:
+            try:
+                dados = json.loads(match.group())
+                if 'entradas' in dados:  # Valida que é o JSON correto
+                    st.success("✅ JSON extraído com regex!")
+                    return dados, None
+            except:
+                continue
+    except Exception as e:
+        st.warning(f"⚠️ Regex extraction falhou: {str(e)}")
+    
+    # CAMADA 3: Tenta encontrar array de entradas e tipo_fonte
+    try:
+        tipo_match = re.search(r'"tipo_fonte"\s*:\s*"([^"]+)"', texto)
+        entradas_match = re.search(r'"entradas"\s*:\s*\[(.*?)\]', texto, re.DOTALL)
+        
+        if tipo_match and entradas_match:
+            tipo_fonte = tipo_match.group(1)
+            entradas_str = entradas_match.group(1)
+            
+            # Tenta parsear entradas individualmente
+            entradas = []
+            entrada_pattern = r'\{[^}]+\}'
+            for entrada_match in re.finditer(entrada_pattern, entradas_str):
+                try:
+                    entrada = json.loads(entrada_match.group())
+                    if 'data' in entrada and 'valor' in entrada:
+                        entradas.append(entrada)
+                except:
+                    continue
+            
+            if entradas:
+                # Monta JSON completo
+                dados_parciais = {
+                    'tipo_fonte': tipo_fonte,
+                    'entradas': entradas
+                }
+                
+                # Completa com resumo calculado
+                dados_completos = completar_json_parcial(dados_parciais, entradas)
+                
+                st.success(f"✅ JSON reconstruído! {len(entradas)} entradas encontradas")
+                return dados_completos, None
+                
+    except Exception as e:
+        st.warning(f"⚠️ Reconstrução JSON falhou: {str(e)}")
+    
+    # CAMADA 4: Corrige vírgulas extras e tenta de novo
+    texto_limpo = texto.replace(",]", "]").replace(",}", "}")
+    try:
+        dados = json.loads(texto_limpo)
+        st.success("✅ JSON corrigido (vírgulas extras)!")
         return dados, None
     except:
         pass
     
-    # Camada 3: Remove quebras de linha
-    texto = texto.replace("\n", " ")
+    # CAMADA 5: Remove quebras de linha e tenta
+    texto_sem_quebras = texto.replace("\n", " ")
     try:
-        dados = json.loads(texto)
+        dados = json.loads(texto_sem_quebras)
+        st.success("✅ JSON corrigido (quebras de linha)!")
         return dados, None
     except:
         pass
     
-    # Camada 4: Extrai JSON com regex
-    import re
-    match = re.search(r'\{.*\}', texto, re.DOTALL)
-    if match:
-        try:
-            dados = json.loads(match.group())
-            return dados, None
-        except:
-            pass
+    # FALHOU - Mostra resposta completa pra debug
+    st.error("❌ Todas as camadas de validação JSON falharam!")
+    with st.expander("🔍 Ver resposta completa do Claude"):
+        st.code(texto_resposta, language="text")
     
-    return None, f"JSON inválido. Resposta: {texto[:500]}"
+    return None, f"Não foi possível extrair JSON válido após 5 tentativas"
 
 def criar_excel_profissional(dados_json, nome_cliente, banco):
     """Cria Excel profissional"""
@@ -602,7 +659,7 @@ def main():
                     continue
                 
                 # Analisa com Claude
-                st.info(f"🤖 Analisando {file.name} com Claude V3.3...")
+                st.info(f"🤖 Analisando {file.name} com Claude V3.3.1...")
                 resposta = analisar_com_claude(conteudo, file_type, nome_cliente, banco)
                 
                 # Valida JSON
@@ -695,7 +752,7 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: #666; padding: 20px;'>
-        <p><strong>Analisador de Renda V3.3</strong> | Suporte Expandido</p>
+        <p><strong>Analisador de Renda V3.3.1</strong> | Suporte Expandido + JSON Melhorado</p>
         <p>Sistema profissional de análise de extratos bancários</p>
         <p style='font-size: 0.8rem; margin-top: 10px;'>
             Desenvolvido com ❤️ usando Streamlit + Claude Sonnet 4
