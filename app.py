@@ -43,6 +43,24 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Meta tags para preview em redes sociais
+st.markdown("""
+<meta property="og:title" content="Analisador de Renda Pro - Beta">
+<meta property="og:description" content="Análise de Extratos Bancários com Inteligência Artificial em 2 minutos. Teste grátis por 30 dias!">
+<meta property="og:image" content="https://i.imgur.com/SEUBANNER.png">
+<meta property="og:url" content="https://bit.ly/analisadorrenda">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Analisador de Renda Pro">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Analisador de Renda Pro">
+<meta name="twitter:description" content="Análise de Extratos com IA em 2 minutos">
+<meta name="twitter:image" content="https://imgur.com/a/oWS86qZ">
+
+<meta name="description" content="Sistema profissional de análise de extratos bancários com IA. Suporta 15 tipos de fontes: bancos tradicionais, digitais, Uber, 99, iFood, Rappi. Beta gratuito por 30 dias.">
+<meta name="keywords" content="análise de renda, extrato bancário, crédito imobiliário, Uber, iFood, IA, inteligência artificial">
+""", unsafe_allow_html=True)
+
 # CSS com design profissional
 st.markdown("""
 <style>
