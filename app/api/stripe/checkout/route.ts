@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
     // Criar sessão de checkout do Stripe - PAGAMENTO ÚNICO
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      mode: 'payment', // MUDOU: era 'subscription', agora é 'payment' (único)
+      mode: 'payment',
       customer_email: email,
+      allow_promotion_codes: true, // HABILITA CUPONS
       line_items: [
         {
           price: process.env.STRIPE_PRICE_ID!,
