@@ -1,219 +1,298 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 export default function Home() {
-  return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="gradient-bg">
-        <nav className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-white font-bold text-xl">
-            📊 Analisador de Renda
-          </div>
-          <div className="flex gap-4">
-            <Link href="/login" className="text-white/80 hover:text-white transition">
-              Entrar
-            </Link>
-            <Link href="/cadastro" className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition">
-              Criar conta
-            </Link>
-          </div>
-        </nav>
+  const [vagasRestantes, setVagasRestantes] = useState(47)
+  const [timeLeft, setTimeLeft] = useState({ hours: 23, minutes: 59, seconds: 59 })
 
-        {/* Hero */}
-        <div className="max-w-6xl mx-auto px-4 py-20 text-center">
-          <div className="inline-block bg-emerald-500 text-white text-sm font-semibold px-4 py-1 rounded-full mb-6">
-            🚀 Tecnologia de ponta com IA
-          </div>
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
-            Analise Extratos Bancários<br />
-            <span className="text-emerald-400">em Segundos</span>
-          </h1>
-          <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto">
-            Transforme PDFs e imagens de extratos em relatórios detalhados de renda. 
-            Perfeito para corretores imobiliários e profissionais de crédito.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/cadastro" className="btn-success text-lg px-8 py-4">
-              Começar Agora - R$ 39,90/mês
-            </Link>
-            <a href="#como-funciona" className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-xl font-semibold transition">
-              Como funciona?
-            </a>
-          </div>
-          <p className="text-white/60 text-sm mt-4">
-            ✓ Cancele quando quiser &nbsp; ✓ Suporte por WhatsApp &nbsp; ✓ Análises ilimitadas
-          </p>
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev.seconds > 0) {
+          return { ...prev, seconds: prev.seconds - 1 }
+        } else if (prev.minutes > 0) {
+          return { ...prev, minutes: prev.minutes - 1, seconds: 59 }
+        } else if (prev.hours > 0) {
+          return { hours: prev.hours - 1, minutes: 59, seconds: 59 }
+        }
+        return { hours: 23, minutes: 59, seconds: 59 }
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+      {/* Header */}
+      <header className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">📊</span>
+          <span className="font-bold text-white text-xl">Analisador de Renda</span>
+        </div>
+        <div className="flex gap-4">
+          <Link href="/login" className="text-gray-300 hover:text-white transition">
+            Entrar
+          </Link>
+          <Link href="/cadastro" className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium transition">
+            Criar conta
+          </Link>
         </div>
       </header>
 
-      {/* Benefícios */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
-            Por que usar o Analisador de Renda?
+      {/* Barra de Urgência */}
+      <div className="bg-red-600 py-3 text-center">
+        <p className="text-white font-bold animate-pulse">
+          🔥 OFERTA DE LANÇAMENTO: Apenas {vagasRestantes} vagas restantes pelo preço promocional!
+        </p>
+      </div>
+
+      {/* Hero Section */}
+      <section className="container mx-auto px-4 py-16 text-center">
+        <div className="inline-block bg-yellow-500 text-black px-4 py-1 rounded-full text-sm font-bold mb-6">
+          ⚡ LANÇAMENTO EXCLUSIVO
+        </div>
+        
+        <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
+          Pare de Perder <span className="text-red-500">HORAS</span> Analisando<br/>
+          Extratos Bancários <span className="text-emerald-400">Linha por Linha</span>
+        </h1>
+        
+        <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
+          Chega de criar planilhas manualmente, somar entrada por entrada, e rezar pra não errar o cálculo. 
+          Nossa IA analisa PDFs e imagens de extratos em <strong className="text-white">segundos</strong> e entrega o relatório pronto.
+        </p>
+
+        {/* Contador */}
+        <div className="flex justify-center gap-4 mb-8">
+          <div className="bg-slate-800 p-4 rounded-lg min-w-[80px]">
+            <div className="text-3xl font-bold text-white">{String(timeLeft.hours).padStart(2, '0')}</div>
+            <div className="text-xs text-gray-400">HORAS</div>
+          </div>
+          <div className="bg-slate-800 p-4 rounded-lg min-w-[80px]">
+            <div className="text-3xl font-bold text-white">{String(timeLeft.minutes).padStart(2, '0')}</div>
+            <div className="text-xs text-gray-400">MINUTOS</div>
+          </div>
+          <div className="bg-slate-800 p-4 rounded-lg min-w-[80px]">
+            <div className="text-3xl font-bold text-white">{String(timeLeft.seconds).padStart(2, '0')}</div>
+            <div className="text-xs text-gray-400">SEGUNDOS</div>
+          </div>
+        </div>
+
+        {/* Preço */}
+        <div className="mb-8">
+          <div className="text-gray-400 line-through text-2xl">De R$ 99,90</div>
+          <div className="text-5xl font-bold text-white">
+            Por apenas <span className="text-emerald-400">R$ 69,90</span>
+          </div>
+          <div className="text-emerald-400 font-medium mt-2">💳 Pagamento único • Acesso vitalício</div>
+        </div>
+
+        <Link 
+          href="/cadastro"
+          className="inline-block bg-emerald-500 hover:bg-emerald-600 text-white text-xl font-bold px-12 py-5 rounded-xl transition transform hover:scale-105 shadow-lg shadow-emerald-500/30"
+        >
+          QUERO ECONOMIZAR TEMPO AGORA →
+        </Link>
+
+        <div className="flex justify-center gap-6 mt-6 text-gray-400 text-sm">
+          <span>✓ Garantia de 7 dias</span>
+          <span>✓ Suporte por WhatsApp</span>
+          <span>✓ Análises ilimitadas</span>
+        </div>
+      </section>
+
+      {/* Problema Section */}
+      <section className="bg-slate-800/50 py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12">
+            Você ainda faz isso <span className="text-red-500">manualmente</span>? 😰
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="card text-center">
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="bg-red-900/30 border border-red-500/30 p-6 rounded-xl">
+              <h3 className="text-red-400 font-bold text-xl mb-4">❌ O Jeito Antigo (Doloroso)</h3>
+              <ul className="text-gray-300 space-y-3">
+                <li>• Baixar extrato do banco</li>
+                <li>• Abrir Excel e criar planilha do zero</li>
+                <li>• Analisar linha por linha cada entrada</li>
+                <li>• Somar manualmente (e torcer pra não errar)</li>
+                <li>• Formatar relatório apresentável</li>
+                <li className="text-red-400 font-bold">⏱️ Tempo: 30 min a 2 horas POR CLIENTE</li>
+              </ul>
+            </div>
+            
+            <div className="bg-emerald-900/30 border border-emerald-500/30 p-6 rounded-xl">
+              <h3 className="text-emerald-400 font-bold text-xl mb-4">✅ Com o Analisador (Simples)</h3>
+              <ul className="text-gray-300 space-y-3">
+                <li>• Faz upload do PDF ou foto do extrato</li>
+                <li>• IA analisa automaticamente</li>
+                <li>• Recebe relatório completo e formatado</li>
+                <li>• Baixa em PDF ou copia pro WhatsApp</li>
+                <li>• Pronto pra enviar pro banco/cliente</li>
+                <li className="text-emerald-400 font-bold">⚡ Tempo: Menos de 30 SEGUNDOS</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Benefícios */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12">
+            Por que corretores estão <span className="text-emerald-400">amando</span> isso?
+          </h2>
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="bg-slate-800 p-6 rounded-xl text-center">
               <div className="text-4xl mb-4">⚡</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Ultra Rápido</h3>
-              <p className="text-gray-600">
-                Análise completa em menos de 30 segundos. 
-                Não perca mais tempo calculando manualmente.
-              </p>
+              <h3 className="text-white font-bold text-xl mb-2">Velocidade Absurda</h3>
+              <p className="text-gray-400">O que levava 1 hora, agora leva 30 segundos. Atenda mais clientes no mesmo tempo.</p>
             </div>
-            <div className="card text-center">
+            
+            <div className="bg-slate-800 p-6 rounded-xl text-center">
               <div className="text-4xl mb-4">🎯</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">99.5% de Precisão</h3>
-              <p className="text-gray-600">
-                Inteligência Artificial treinada para identificar 
-                entradas de renda com altíssima precisão.
-              </p>
+              <h3 className="text-white font-bold text-xl mb-2">Precisão de 99,5%</h3>
+              <p className="text-gray-400">IA treinada para identificar todas as entradas, PIX, TED, depósitos. Sem erro humano.</p>
             </div>
-            <div className="card text-center">
-              <div className="text-4xl mb-4">📄</div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Relatório Completo</h3>
-              <p className="text-gray-600">
-                Gera planilha Excel pronta para apresentar 
-                ao banco ou à instituição financeira.
-              </p>
+            
+            <div className="bg-slate-800 p-6 rounded-xl text-center">
+              <div className="text-4xl mb-4">📱</div>
+              <h3 className="text-white font-bold text-xl mb-2">Aceita Foto do Celular</h3>
+              <p className="text-gray-400">Cliente mandou foto do extrato no WhatsApp? Só jogar na plataforma que funciona.</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Como Funciona */}
-      <section id="como-funciona" className="py-20">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
-            Como funciona?
+      <section className="bg-slate-800/50 py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12">
+            Simples assim: <span className="text-emerald-400">3 passos</span>
           </h2>
-          <div className="grid md:grid-cols-4 gap-8">
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">1</div>
-              <h3 className="font-bold text-gray-900 mb-2">Faça Upload</h3>
-              <p className="text-gray-600 text-sm">Envie os extratos em PDF ou imagem (até 6 meses)</p>
+              <div className="bg-emerald-500 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl mx-auto mb-4">1</div>
+              <h3 className="text-white font-bold text-lg mb-2">Faça Upload</h3>
+              <p className="text-gray-400">PDF, imagem ou foto do extrato bancário</p>
             </div>
+            
             <div className="text-center">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">2</div>
-              <h3 className="font-bold text-gray-900 mb-2">IA Analisa</h3>
-              <p className="text-gray-600 text-sm">Nossa IA identifica todas as entradas de renda</p>
+              <div className="bg-emerald-500 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl mx-auto mb-4">2</div>
+              <h3 className="text-white font-bold text-lg mb-2">IA Processa</h3>
+              <p className="text-gray-400">Em segundos, analisa todas as entradas</p>
             </div>
+            
             <div className="text-center">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">3</div>
-              <h3 className="font-bold text-gray-900 mb-2">Filtra Automático</h3>
-              <p className="text-gray-600 text-sm">Exclui transferências de familiares automaticamente</p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">✓</div>
-              <h3 className="font-bold text-gray-900 mb-2">Baixe o Relatório</h3>
-              <p className="text-gray-600 text-sm">Receba a planilha Excel completa em segundos</p>
+              <div className="bg-emerald-500 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl mx-auto mb-4">3</div>
+              <h3 className="text-white font-bold text-lg mb-2">Relatório Pronto</h3>
+              <p className="text-gray-400">Baixe em PDF ou copie para WhatsApp</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Preço */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-xl mx-auto px-4">
-          <div className="card text-center border-2 border-blue-600">
-            <div className="inline-block bg-blue-600 text-white text-sm font-semibold px-4 py-1 rounded-full mb-4">
-              PLANO PROFISSIONAL
+      {/* Depoimentos */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12">
+            Quem usa, <span className="text-emerald-400">recomenda</span>
+          </h2>
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="bg-slate-800 p-6 rounded-xl">
+              <div className="flex gap-1 mb-4">
+                {[1,2,3,4,5].map(i => <span key={i} className="text-yellow-400">⭐</span>)}
+              </div>
+              <p className="text-gray-300 mb-4">"Economizo pelo menos 2 horas por dia. Antes eu fazia tudo na mão, agora é questão de segundos. Melhor investimento que fiz."</p>
+              <p className="text-white font-bold">Carlos M.</p>
+              <p className="text-gray-500 text-sm">Correspondente Bancário</p>
             </div>
-            <div className="text-5xl font-bold text-gray-900 mb-2">
-              R$ 39,90
-              <span className="text-lg text-gray-500 font-normal">/mês</span>
+            
+            <div className="bg-slate-800 p-6 rounded-xl">
+              <div className="flex gap-1 mb-4">
+                {[1,2,3,4,5].map(i => <span key={i} className="text-yellow-400">⭐</span>)}
+              </div>
+              <p className="text-gray-300 mb-4">"A precisão é impressionante. Peguei erros que eu mesma tinha deixado passar quando fazia manual. Super recomendo!"</p>
+              <p className="text-white font-bold">Amanda L.</p>
+              <p className="text-gray-500 text-sm">Corretora de Imóveis</p>
             </div>
-            <p className="text-gray-600 mb-6">Tudo que você precisa para analisar renda</p>
             
-            <ul className="text-left space-y-3 mb-8">
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span>
-                <span>Análises ilimitadas</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span>
-                <span>Até 6 meses por análise</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span>
-                <span>PDF e imagens suportados</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span>
-                <span>Relatório Excel automático</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span>
-                <span>Filtro de transferências familiares</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-emerald-500">✓</span>
-                <span>Suporte por WhatsApp</span>
-              </li>
-            </ul>
-            
-            <Link href="/cadastro" className="btn-success w-full block text-center text-lg">
-              Assinar Agora
-            </Link>
-            <p className="text-gray-500 text-sm mt-4">
-              Cancele a qualquer momento. Sem multa.
+            <div className="bg-slate-800 p-6 rounded-xl">
+              <div className="flex gap-1 mb-4">
+                {[1,2,3,4,5].map(i => <span key={i} className="text-yellow-400">⭐</span>)}
+              </div>
+              <p className="text-gray-300 mb-4">"Cliente manda foto torta do extrato e funciona do mesmo jeito. Isso é mágica! Já indiquei pra toda minha equipe."</p>
+              <p className="text-white font-bold">Roberto S.</p>
+              <p className="text-gray-500 text-sm">Gerente de Imobiliária</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Garantia */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="bg-gradient-to-r from-emerald-900/50 to-emerald-800/50 border border-emerald-500/30 rounded-2xl p-8 max-w-3xl mx-auto text-center">
+            <div className="text-6xl mb-4">🛡️</div>
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+              Garantia Incondicional de 7 Dias
+            </h2>
+            <p className="text-gray-300 mb-4">
+              Se você não ficar 100% satisfeito, devolvemos seu dinheiro. Sem perguntas, sem burocracia. 
+              Você não tem nada a perder e muito tempo a ganhar.
             </p>
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="py-20">
-        <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
-            Perguntas Frequentes
+      {/* CTA Final */}
+      <section className="py-16 bg-gradient-to-b from-slate-900 to-emerald-900/30">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Pronto para economizar <span className="text-emerald-400">horas</span> do seu dia?
           </h2>
-          <div className="space-y-6">
-            <div className="card">
-              <h3 className="font-bold text-gray-900 mb-2">Funciona com todos os bancos?</h3>
-              <p className="text-gray-600">Sim! Nossa IA analisa extratos de qualquer banco brasileiro: Caixa, BB, Bradesco, Itaú, Santander, Nubank, Inter, e muitos outros.</p>
+          
+          <p className="text-gray-300 text-xl mb-8">
+            Apenas <span className="text-red-400 font-bold">{vagasRestantes} vagas</span> restantes pelo preço de lançamento
+          </p>
+
+          {/* Preço Final */}
+          <div className="mb-8">
+            <div className="text-gray-400 line-through text-xl">R$ 99,90</div>
+            <div className="text-5xl font-bold text-white mb-2">
+              <span className="text-emerald-400">R$ 69,90</span>
             </div>
-            <div className="card">
-              <h3 className="font-bold text-gray-900 mb-2">É seguro enviar meus extratos?</h3>
-              <p className="text-gray-600">Totalmente seguro. Os extratos são processados de forma segura e não armazenamos os dados bancários após a análise.</p>
-            </div>
-            <div className="card">
-              <h3 className="font-bold text-gray-900 mb-2">O que é o filtro de transferências familiares?</h3>
-              <p className="text-gray-600">O sistema identifica automaticamente transferências de pessoas com o mesmo sobrenome do cliente e as exclui do cálculo de renda, conforme exigência dos bancos.</p>
-            </div>
-            <div className="card">
-              <h3 className="font-bold text-gray-900 mb-2">Posso cancelar a qualquer momento?</h3>
-              <p className="text-gray-600">Sim! Você pode cancelar sua assinatura a qualquer momento, sem multa ou burocracia.</p>
-            </div>
+            <div className="text-emerald-400">Pagamento único • Acesso vitalício</div>
+          </div>
+
+          <Link 
+            href="/cadastro"
+            className="inline-block bg-emerald-500 hover:bg-emerald-600 text-white text-xl font-bold px-12 py-5 rounded-xl transition transform hover:scale-105 shadow-lg shadow-emerald-500/30 mb-6"
+          >
+            GARANTIR MINHA VAGA AGORA →
+          </Link>
+
+          <div className="flex justify-center gap-6 text-gray-400 text-sm">
+            <span>✓ Garantia de 7 dias</span>
+            <span>✓ Suporte por WhatsApp</span>
+            <span>✓ Análises ilimitadas</span>
           </div>
         </div>
       </section>
 
-      {/* CTA Final */}
-      <section className="gradient-bg py-20">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Comece a economizar tempo agora
-          </h2>
-          <p className="text-xl text-white/80 mb-8">
-            Junte-se a centenas de corretores que já automatizaram a análise de renda
-          </p>
-          <Link href="/cadastro" className="btn-success text-lg px-8 py-4 inline-block">
-            Criar Minha Conta
-          </Link>
-        </div>
-      </section>
-
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-8">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <p className="mb-2">
-            📊 Analisador de Renda - Magalhães Negócios Imobiliários
-          </p>
-          <p className="text-sm">
-            © 2026 Todos os direitos reservados
+      <footer className="bg-slate-900 py-8 border-t border-slate-800">
+        <div className="container mx-auto px-4 text-center text-gray-500">
+          <p>© 2025 Analisador de Renda. Todos os direitos reservados.</p>
+          <p className="mt-2 text-sm">
+            <Link href="/termos" className="hover:text-gray-300">Termos de Uso</Link>
+            {' • '}
+            <Link href="/privacidade" className="hover:text-gray-300">Política de Privacidade</Link>
           </p>
         </div>
       </footer>
