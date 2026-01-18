@@ -22,9 +22,10 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
 
+    // Criar sessão de checkout do Stripe - PAGAMENTO ÚNICO
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      mode: 'subscription',
+      mode: 'payment', // MUDOU: era 'subscription', agora é 'payment' (único)
       customer_email: email,
       line_items: [
         {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing?canceled=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/?canceled=true`,
       metadata: {
         userId: userId || '',
       },
