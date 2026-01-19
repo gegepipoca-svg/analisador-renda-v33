@@ -1,5 +1,4 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -22,10 +21,23 @@ export default function Dashboard() {
         router.push('/login')
         return
       }
-
       setUser(user)
 
-      // Verificar assinatura
+      // Primeiro: verificar se tem acesso vitalício na tabela users
+      const { data: userData } = await supabase
+        .from('users')
+        .select('has_lifetime')
+        .eq('id', user.id)
+        .single()
+
+      // Se tem acesso vitalício, libera
+      if (userData?.has_lifetime) {
+        setSubscription({ status: 'lifetime' })
+        setLoading(false)
+        return
+      }
+
+      // Senão: verificar assinatura ativa
       const { data: sub } = await supabase
         .from('subscriptions')
         .select('*')
@@ -106,7 +118,7 @@ export default function Dashboard() {
               {user?.email}
             </span>
             <span className="bg-emerald-100 text-emerald-700 text-xs font-semibold px-2 py-1 rounded">
-              Assinante Ativo
+              {subscription?.status === 'lifetime' ? 'Acesso Vitalício' : 'Assinante Ativo'}
             </span>
             <button 
               onClick={handleLogout}
